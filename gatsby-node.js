@@ -16,7 +16,7 @@ exports.createSchemaCustomization = async api => {
     name: type,
     fields: {
       navigationParent: {
-        type: `[${type}]`,
+        type: `type`,
         resolve: async (source, _args, context, _info) => {
           const allNavigationItems = await context.nodeModel.runQuery({
             query: {
