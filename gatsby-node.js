@@ -1,6 +1,8 @@
 const {
   getKontentItemNodeTypeName,
 } = require("@kentico/gatsby-source-kontent")
+const path = require('path')
+
 
 exports.createSchemaCustomization = async api => {
 
@@ -15,9 +17,9 @@ exports.createSchemaCustomization = async api => {
   const extendedType = schema.buildObjectType({
     name: type,
     fields: {
-      navigationParent: {
-        type: `type`,
-        resolve: async (source, _args, context, _info) => {
+      url: {
+        type: `String`,
+        resolve: async (source, args, context, info) => {
           const allNavigationItems = await context.nodeModel.runQuery({
             query: {
               filter: {},
@@ -26,41 +28,65 @@ exports.createSchemaCustomization = async api => {
             firstOnly: false,
           });
 
-          // TODO note about restriction in Kontent
-          return allNavigationItems.find(item =>
-            item.preferred_language === source.preferred_language
-            && item.elements["sub_nav"].value.includes(source.system.codename)
-          )
+          const urlFragments = [source.elements.slug.value]; // /about/small-gas/subsection/<-
+          let parent;
+          let currentContextItem = source;
+
+          do {
+            parent = allNavigationItems.find(item =>
+              item.preferred_language === currentContextItem.preferred_language
+              && item.elements["subitems"].value.includes(currentContextItem.system.codename));
+
+            if (parent) {
+              urlFragments.push(parent.elements.slug.value)
+              currentContextItem = parent;
+            }
+          } while (parent)
+
+          urlFragments.reverse();
+          return urlFragments[0] + urlFragments.slice(1).join("/");
         }
       }
     }
-    // resolvedURL: {
-    //   type: `string`,
-    //   resolve: async (source, args, context, info) => {
-    //     const allNavigationItems = await context.nodeModel.runQuery({
-    //       query: {
-    //         filter: {},
-    //       },
-    //       type: type,
-    //       firstOnly: false,
-    //     });
-
-    //     const url = '/'; // /about/small-gas/subsection/<-
-    //     let parent;
-    //     let currentContextItem = source;
-    //     do {
-    //       parent = allNavigationItems.find(item =>
-    //         item.preferred_language === currentContextItem.preferred_language
-    //         && item.elements["sub_nav"].value.includes(currentContextItem.system.codename));
-
-    //       url = "/" + parent.element.slug.value + url;
-    //       currentContextItem = parent;
-    //     } while (!parent)
-
-    //     return url;
-    //   }
-    // }
   });
 
   createTypes(extendedType)
+}
+
+exports.createPages = async ({ graphql, actions }) => {
+  const { createPage } = actions;
+
+  const { data } = await graphql(`
+    query TopLevelPages {
+      allKontentItemNavigationItem {
+        nodes {
+          url
+          elements {
+            content_page {
+              value {
+                ... on kontent_item_content_page {
+                  preferred_language
+                  system {
+                    codename
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }    
+    `);
+
+  data.allKontentItemNavigationItem.nodes.forEach(page => {
+    const contentPage = page.elements.content_page.value[0]
+    createPage({
+      path: page.url,
+      component: require.resolve(`./src/templates/content-page.js`),
+      context: {
+        language: contentPage.preferred_language,
+        codename: contentPage.system.codename
+      }
+    })
+  });
 }
