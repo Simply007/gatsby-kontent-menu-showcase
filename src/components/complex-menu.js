@@ -66,7 +66,7 @@ const ComplexMenu = () => {
       );
       return [
         itemHtml,
-        <ul>{subMenu}</ul>
+        <ul key={`submenu-${url}`} >{subMenu}</ul>
       ];
     }
   }
