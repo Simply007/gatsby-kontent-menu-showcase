@@ -1,5 +1,5 @@
 import React from "react"
-import { useStaticQuery, graphql } from "gatsby"
+import { useStaticQuery, graphql, Link } from "gatsby"
 
 const ComplexMenu = () => {
   const data = useStaticQuery(graphql`
@@ -56,7 +56,7 @@ const ComplexMenu = () => {
   const constructMenu = (menuItem) => {
     const url = menuItem.url;
     const title = menuItem.elements.title.value;
-    const itemHtml = <li key={url}><a href={url}>{title}</a></li>;
+    const itemHtml = <li key={url}><Link to={url}>{title}</Link></li>;
 
     if (!menuItem.elements.subitems) {
       return itemHtml;
